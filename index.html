@@ -108,7 +108,7 @@
             font-weight: 600;
         }
 
-        .form-group input, .form-group textarea {
+        .form-group input {
             width: 100%;
             padding: 12px 15px;
             border: 1px solid #dcc;
@@ -119,14 +119,9 @@
             font-family: inherit;
         }
 
-        .form-group input:focus, .form-group textarea:focus {
+        .form-group input:focus {
             border-color: #7b5a3b;
             box-shadow: 0 0 0 2px rgba(123,90,59,0.1);
-        }
-
-        .form-group textarea {
-            resize: vertical;
-            min-height: 100px;
         }
 
         .btn-tambah {
@@ -139,7 +134,7 @@
             cursor: pointer;
             font-size: 1rem;
             transition: all 0.2s;
-            margin-top: 20px;
+            margin-top: 10px;
         }
 
         .btn-tambah:hover {
@@ -322,6 +317,26 @@
             color: #999;
         }
 
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        .btn-hapus-semua {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+
+        .btn-hapus-semua:hover {
+            background: #5a6268;
+        }
+
         .footer {
             text-align: center;
             margin-top: 25px;
@@ -394,7 +409,7 @@
     <div class="preview-card">
         <div class="preview-title">📄 Preview Pesan (Nama akan otomatis terganti)</div>
         <div class="preview-content" id="previewPesan">
-            <!-- Preview akan diisi JS -->
+            <em>Tambahkan tamu terlebih dahulu untuk melihat preview pesan</em>
         </div>
     </div>
 
@@ -402,46 +417,61 @@
     <div class="list-card">
         <div class="list-header">
             <h3>📋 Daftar Undangan</h3>
-            <input type="text" id="searchInput" class="search-box" placeholder="Cari nama...">
+            <div>
+                <input type="text" id="searchInput" class="search-box" placeholder="Cari nama...">
+                <button id="btnHapusSemua" class="btn-hapus-semua" style="display: none;">🗑️ Hapus Semua</button>
+            </div>
         </div>
         <div id="tamuListContainer" class="tamu-list">
-            <!-- Daftar tamu akan diisi JS -->
+            <div class="empty-state">
+                <div class="empty-state-icon">📭</div>
+                <div>Belum ada tamu. Silakan tambah undangan di atas.</div>
+            </div>
         </div>
     </div>
     <div class="footer">
-        Copyright © 2026 SCOBY ID - All Rights Reserved.<br>
-        💾 Data tersimpan otomatis di database
+        ✨ Klik Kirim → otomatis buka WhatsApp dengan nama undangan yang sesuai ✨<br>
+        💾 Data tersimpan otomatis di browser Anda
     </div>
 </div>
 
 <script>
     // ==================== DATA ====================
+    // AWALNYA KOSONG - TIDAK ADA DATA DEFAULT
     let semuaTamu = [];
     let nextId = 1;
 
-    // Load data dari localStorage
+    // Load data dari localStorage (hanya data yang pernah ditambahkan)
     function loadData() {
         const stored = localStorage.getItem('undanganDigital');
         if (stored) {
             semuaTamu = JSON.parse(stored);
             if (semuaTamu.length > 0) {
                 nextId = Math.max(...semuaTamu.map(t => t.id)) + 1;
+            } else {
+                nextId = 1;
             }
         } else {
-            // Data contoh
-            semuaTamu = [
-                { id: nextId++, nama: "Eki", nomor: "6281234567890", statusKirim: false },
-                { id: nextId++, nama: "Budi Santoso", nomor: "628123456789", statusKirim: false },
-                { id: nextId++, nama: "Siti Aminah", nomor: "6285778901234", statusKirim: false }
-            ];
-            saveData();
+            // TIDAK ADA DATA DEFAULT - ARRAY KOSONG
+            semuaTamu = [];
+            nextId = 1;
         }
         updateStatistik();
+        // Tampilkan/hilangkan tombol hapus semua
+        const btnHapusSemua = document.getElementById('btnHapusSemua');
+        if (btnHapusSemua) {
+            btnHapusSemua.style.display = semuaTamu.length > 0 ? 'inline-block' : 'none';
+        }
     }
 
     function saveData() {
         localStorage.setItem('undanganDigital', JSON.stringify(semuaTamu));
         updateStatistik();
+        // Update tampilan tombol hapus semua
+        const btnHapusSemua = document.getElementById('btnHapusSemua');
+        if (btnHapusSemua) {
+            btnHapusSemua.style.display = semuaTamu.length > 0 ? 'inline-block' : 'none';
+        }
     }
 
     function updateStatistik() {
@@ -463,17 +493,27 @@
         }
     }
 
+    // Hapus semua data
+    function hapusSemuaData() {
+        if (semuaTamu.length === 0) return;
+        if (confirm(`⚠️ Yakin ingin menghapus SEMUA ${semuaTamu.length} tamu? Tindakan ini tidak dapat dibatalkan!`)) {
+            semuaTamu = [];
+            nextId = 1;
+            saveData();
+            renderDaftarTamu();
+            updatePreview('');
+            document.getElementById('previewPesan').innerHTML = '<em>Tambahkan tamu terlebih dahulu untuk melihat preview pesan</em>';
+        }
+    }
+
     // ==================== PESAN UNDANGAN ====================
-    // Format pesan sesuai permintaan Anda
     function generatePesan(namaTarget) {
         const namaBersih = namaTarget.trim();
         const namaUpper = namaBersih.toUpperCase();
         
-        // Link undangan dengan parameter to
         const namaForLink = encodeURIComponent(namaBersih).replace(/%20/g, '+');
-        const linkUndangan = `https://scoby07.github.io/wardah-kiki/?to=${namaForLink}+`;
+        const linkUndangan = `https://wardah-kiki.blogspot.com/?to=${namaForLink}+`;
         
-        // Pesan lengkap dengan format persis seperti yang diminta
         const pesan = `Kepada Yth.
 Bapak/Ibu/Saudara/i
 *${namaUpper}*
@@ -499,16 +539,13 @@ Wardah dan Kiki`;
         return pesan;
     }
 
-    // Preview pesan (untuk ditampilkan di website)
     function updatePreview(nama) {
-        if (!nama) {
+        if (!nama || semuaTamu.length === 0) {
             document.getElementById('previewPesan').innerHTML = '<em>Pilih tamu untuk melihat preview pesan</em>';
             return;
         }
         const pesan = generatePesan(nama);
-        // Konversi ke HTML untuk tampilan
         let htmlPesan = pesan.replace(/\n/g, '<br>');
-        // Highlight nama
         const namaUpper = nama.trim().toUpperCase();
         htmlPesan = htmlPesan.replace(`*${namaUpper}*`, `<span class="highlight-name">*${namaUpper}*</span>`);
         document.getElementById('previewPesan').innerHTML = htmlPesan;
@@ -521,7 +558,6 @@ Wardah dan Kiki`;
             return;
         }
         
-        // Format nomor
         let cleanNomor = nomor.toString().replace(/\s+/g, '').replace(/[^0-9]/g, '');
         if (!cleanNomor.startsWith('62')) {
             if (cleanNomor.startsWith('0')) {
@@ -534,15 +570,12 @@ Wardah dan Kiki`;
             }
         }
         
-        // Generate pesan dengan nama yang benar
         const pesan = generatePesan(nama);
         const pesanEncode = encodeURIComponent(pesan);
         const waUrl = `https://wa.me/${cleanNomor}?text=${pesanEncode}`;
         
-        // Buka WhatsApp
         window.open(waUrl, '_blank');
         
-        // Tandai sudah dikirim (opsional, bisa dikomentari jika tidak ingin otomatis)
         if (confirm(`Apakah pesan untuk ${nama} sudah terkirim? Klik OK untuk menandai terkirim.`)) {
             tandaiTerkirim(id);
         }
@@ -559,7 +592,6 @@ Wardah dan Kiki`;
             return false;
         }
         
-        // Validasi nomor
         let cleanNomor = nomor.toString().replace(/\s+/g, '').replace(/[^0-9]/g, '');
         if (!cleanNomor.startsWith('62')) {
             if (cleanNomor.startsWith('0')) {
@@ -625,6 +657,7 @@ Wardah dan Kiki`;
                 updatePreview(semuaTamu[0].nama);
             } else {
                 updatePreview('');
+                document.getElementById('previewPesan').innerHTML = '<em>Tambahkan tamu terlebih dahulu untuk melihat preview pesan</em>';
             }
         }
     }
@@ -640,7 +673,11 @@ Wardah dan Kiki`;
         );
         
         if (filtered.length === 0) {
-            container.innerHTML = '<div class="empty-state">📭 Belum ada tamu. Silakan tambah undangan di atas.</div>';
+            if (semuaTamu.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div>Belum ada tamu. Silakan tambah undangan di atas.</div></div>';
+            } else {
+                container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔍</div><div>Tidak ada tamu yang cocok dengan pencarian.</div></div>';
+            }
             return;
         }
         
@@ -735,8 +772,17 @@ Wardah dan Kiki`;
             if (semuaTamu.length > 0) {
                 updatePreview(semuaTamu[semuaTamu.length - 1].nama);
             }
+            inputNama.focus();
         }
     });
+    
+    // Tombol hapus semua
+    const btnHapusSemua = document.getElementById('btnHapusSemua');
+    if (btnHapusSemua) {
+        btnHapusSemua.addEventListener('click', () => {
+            hapusSemuaData();
+        });
+    }
     
     // Search
     const searchInput = document.getElementById('searchInput');
@@ -748,12 +794,12 @@ Wardah dan Kiki`;
     document.getElementById('inputNomor').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') document.getElementById('btnTambah').click();
     });
+    document.getElementById('inputNama').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') document.getElementById('inputNomor').focus();
+    });
     
-    // Render awal
+    // Render awal (kosong)
     renderDaftarTamu('');
-    if (semuaTamu.length > 0) {
-        updatePreview(semuaTamu[0].nama);
-    }
 </script>
 </body>
 </html>
